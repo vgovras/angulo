@@ -2,6 +2,11 @@ name: Deploy to CF Pages
 
 on:
   workflow_dispatch:
+    inputs:
+      create_project:
+        description: 'Create CF Pages project first'
+        type: boolean
+        default: false
 
 jobs:
   deploy:
@@ -25,6 +30,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+
+      - name: Create CF Pages project
+        if: ${{ inputs.create_project }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: pnpm
+          wranglerVersion: '4'
+          command: pages project create angulo --production-branch=main
 
       - name: Deploy to CF Pages
         uses: cloudflare/wrangler-action@v3
