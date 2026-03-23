@@ -9,6 +9,7 @@
   import * as Select from '$lib/components/ui/select/index.js'
   import X from '@lucide/svelte/icons/x'
   import Minus from '@lucide/svelte/icons/minus'
+  import ArrowRight from '@lucide/svelte/icons/arrow-right'
   import Plus from '@lucide/svelte/icons/plus'
 
   let {
@@ -59,7 +60,11 @@
       {#each linesVm.measurements as m (m.id)}
         <div class="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-muted">
           <div class="flex items-center gap-2">
-            <Minus class="size-3 text-muted-foreground" />
+            {#if m.isRay}
+              <ArrowRight class="size-3 text-muted-foreground" />
+            {:else}
+              <Minus class="size-3 text-muted-foreground" />
+            {/if}
             <span class="font-medium">{pointLabel(m.pointAId)}—{pointLabel(m.pointBId)}</span>
             <Badge variant="outline" class="px-1 py-0 text-[10px]">
               {formatLength(m.lengthPx)}

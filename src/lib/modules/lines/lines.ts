@@ -4,6 +4,7 @@ export interface LineMeasurement {
   pointAId: string
   pointBId: string
   lengthPx: number | null
+  isRay?: boolean
 }
 
 export interface LineAngle {

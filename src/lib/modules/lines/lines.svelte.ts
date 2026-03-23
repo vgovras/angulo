@@ -21,7 +21,7 @@ export class LinesViewModel {
     this.load()
   }
 
-  selectPoint(pointId: string) {
+  selectPoint(pointId: string, isRay = false) {
     if (!this.pendingPointId) {
       this.pendingPointId = pointId
     } else if (this.pendingPointId === pointId) {
@@ -36,6 +36,7 @@ export class LinesViewModel {
           pointAId: this.pendingPointId,
           pointBId: pointId,
           lengthPx: distancePx(a, b),
+          isRay,
         })
         this.save()
       }

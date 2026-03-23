@@ -242,11 +242,11 @@
       }
     }
 
-    if (canvasVm.mode === 'line') {
+    if (canvasVm.mode === 'line' || canvasVm.mode === 'ray') {
       const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
       if (hit) {
         onBeforeAction()
-        linesVm.selectPoint(hit.id)
+        linesVm.selectPoint(hit.id, canvasVm.mode === 'ray')
       } else {
         pointsVm.select(null)
         linesVm.cancelPending()

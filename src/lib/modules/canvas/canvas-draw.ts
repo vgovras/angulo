@@ -193,7 +193,18 @@ export function drawLines(
     ctx.lineWidth = 2 * s
     ctx.beginPath()
     ctx.moveTo(a.x, a.y)
-    ctx.lineTo(b.x, b.y)
+    if (m.isRay) {
+      // Extend ray from A through B to a far distance
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      const len = Math.sqrt(dx * dx + dy * dy)
+      if (len > 0) {
+        const ext = 10000
+        ctx.lineTo(a.x + (dx / len) * ext, a.y + (dy / len) * ext)
+      }
+    } else {
+      ctx.lineTo(b.x, b.y)
+    }
     ctx.stroke()
 
     // Length label at midpoint
