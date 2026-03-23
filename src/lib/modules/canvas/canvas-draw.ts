@@ -1,5 +1,6 @@
 import type { Point } from '$lib/modules/points/points'
 import type { AngleMeasurement } from '$lib/modules/angles/angles'
+import { type LineMeasurement, type LineAngle, lineIntersection } from '$lib/modules/lines/lines'
 
 const HANDLE_SIZE = 44
 const HANDLE_OFFSET_X = 20
@@ -24,8 +25,8 @@ export function drawGrid(
   for (let x = 0; x < width; x += stepPx) {
     const isMajor = Math.round(x / stepPx) % 5 === 0
     ctx.strokeStyle = isMajor
-      ? 'rgba(135, 206, 250, 0.5)'
-      : 'rgba(135, 206, 250, 0.2)'
+      ? 'rgba(30, 64, 175, 0.5)'
+      : 'rgba(30, 64, 175, 0.2)'
     ctx.beginPath()
     ctx.moveTo(x, 0)
     ctx.lineTo(x, height)
@@ -35,8 +36,8 @@ export function drawGrid(
   for (let y = 0; y < height; y += stepPx) {
     const isMajor = Math.round(y / stepPx) % 5 === 0
     ctx.strokeStyle = isMajor
-      ? 'rgba(135, 206, 250, 0.5)'
-      : 'rgba(135, 206, 250, 0.2)'
+      ? 'rgba(30, 64, 175, 0.5)'
+      : 'rgba(30, 64, 175, 0.2)'
     ctx.beginPath()
     ctx.moveTo(0, y)
     ctx.lineTo(width, y)
@@ -143,8 +144,8 @@ export function drawAngles(
     if (!a || !b || !c || m.valueDeg === null) continue
 
     // Lines B→A and B→C
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'
-    ctx.lineWidth = 1.5 * s
+    ctx.strokeStyle = '#92400e'
+    ctx.lineWidth = 2 * s
     ctx.beginPath()
     ctx.moveTo(a.x, a.y)
     ctx.lineTo(b.x, b.y)
@@ -155,7 +156,7 @@ export function drawAngles(
     const angleBA = Math.atan2(a.y - b.y, a.x - b.x)
     const angleBC = Math.atan2(c.y - b.y, c.x - b.x)
     const arcRadius = 25 * s
-    ctx.strokeStyle = '#fbbf24'
+    ctx.strokeStyle = '#92400e'
     ctx.lineWidth = 2 * s
     ctx.beginPath()
     ctx.arc(b.x, b.y, arcRadius, angleBC, angleBA, angleBA < angleBC)
@@ -165,12 +166,153 @@ export function drawAngles(
     const midAngle = (angleBA + angleBC) / 2
     const labelX = b.x + Math.cos(midAngle) * (arcRadius + 14 * s)
     const labelY = b.y + Math.sin(midAngle) * (arcRadius + 14 * s)
-    ctx.fillStyle = '#fbbf24'
+    ctx.fillStyle = '#92400e'
     ctx.font = `bold ${13 * s}px sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(`${m.valueDeg}°`, labelX, labelY)
   }
+  ctx.restore()
+}
+
+export function drawLines(
+  ctx: CanvasRenderingContext2D,
+  measurements: LineMeasurement[],
+  points: Point[],
+  zoom: number,
+  pxPerMm: number | null
+) {
+  const s = 1 / zoom
+  ctx.save()
+  for (const m of measurements) {
+    const a = points.find((p) => p.id === m.pointAId)
+    const b = points.find((p) => p.id === m.pointBId)
+    if (!a || !b) continue
+
+    ctx.strokeStyle = 'rgba(153, 27, 27, 0.9)'
+    ctx.lineWidth = 2 * s
+    ctx.beginPath()
+    ctx.moveTo(a.x, a.y)
+    ctx.lineTo(b.x, b.y)
+    ctx.stroke()
+
+    // Length label at midpoint
+    if (m.lengthPx !== null) {
+      const mx = (a.x + b.x) / 2
+      const my = (a.y + b.y) / 2
+      const label = pxPerMm
+        ? `${(m.lengthPx / pxPerMm / 10).toFixed(2)} см`
+        : `${m.lengthPx.toFixed(0)} px`
+      ctx.fillStyle = 'rgba(153, 27, 27, 1)'
+      ctx.font = `bold ${16 * s}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'bottom'
+      ctx.fillText(label, mx, my - 4 * s)
+    }
+  }
+  ctx.restore()
+}
+
+export function drawLineAngles(
+  ctx: CanvasRenderingContext2D,
+  angles: LineAngle[],
+  lines: LineMeasurement[],
+  points: Point[],
+  zoom: number
+) {
+  const s = 1 / zoom
+  ctx.save()
+  for (const a of angles) {
+    if (a.valueDeg === null) continue
+    const lineA = lines.find((l) => l.id === a.lineAId)
+    const lineB = lines.find((l) => l.id === a.lineBId)
+    if (!lineA || !lineB) continue
+
+    const pA1 = points.find((p) => p.id === lineA.pointAId)
+    const pA2 = points.find((p) => p.id === lineA.pointBId)
+    const pB1 = points.find((p) => p.id === lineB.pointAId)
+    const pB2 = points.find((p) => p.id === lineB.pointBId)
+    if (!pA1 || !pA2 || !pB1 || !pB2) continue
+
+    const ix = lineIntersection(pA1, pA2, pB1, pB2)
+    if (!ix) continue
+
+    // 4 direction angles from intersection
+    const angA1 = Math.atan2(pA2.y - pA1.y, pA2.x - pA1.x)
+    const angA2 = angA1 + Math.PI // opposite direction
+    const angB1 = Math.atan2(pB2.y - pB1.y, pB2.x - pB1.x)
+    const angB2 = angB1 + Math.PI
+
+    // Sort all 4 angles to find the 4 sectors
+    const dirs = [angA1, angB1, angA2, angB2].map((a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI))
+    dirs.sort((a, b) => a - b)
+
+    const arcRadius = 30 * s
+    const acuteRad = (a.valueDeg * Math.PI) / 180
+    const obtuseRad = Math.PI - acuteRad
+    const obtuseDeg = parseFloat((180 - a.valueDeg).toFixed(1))
+
+    // Draw intersection dot
+    ctx.fillStyle = '#92400e'
+    ctx.beginPath()
+    ctx.arc(ix.x, ix.y, 3 * s, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Draw 2 unique angles (first acute + first obtuse)
+    let drawnAcute = false
+    let drawnObtuse = false
+    for (let i = 0; i < 4; i++) {
+      const startAng = dirs[i]
+      const endAng = dirs[(i + 1) % 4]
+      let sweep = endAng - startAng
+      if (sweep <= 0) sweep += 2 * Math.PI
+
+      const isAcute = Math.abs(sweep - acuteRad) < 0.01
+      const isObtuse = Math.abs(sweep - obtuseRad) < 0.01
+      if (isAcute && drawnAcute) continue
+      if (isObtuse && drawnObtuse) continue
+      if (!isAcute && !isObtuse) continue
+
+      if (isAcute) drawnAcute = true
+      if (isObtuse) drawnObtuse = true
+
+      const deg = isAcute ? a.valueDeg : obtuseDeg
+      const radius = isAcute ? arcRadius : arcRadius * 0.7
+      const color = isAcute ? '#b45309' : '#6d28d9'
+
+      ctx.strokeStyle = color
+      ctx.lineWidth = 2.5 * s
+      ctx.beginPath()
+      ctx.arc(ix.x, ix.y, radius, startAng, startAng + sweep)
+      ctx.stroke()
+
+      const midAng = startAng + sweep / 2
+      const labelDist = radius + 16 * s
+      const labelX = ix.x + Math.cos(midAng) * labelDist
+      const labelY = ix.y + Math.sin(midAng) * labelDist
+      ctx.fillStyle = color
+      ctx.font = `bold ${15 * s}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(`${deg}°`, labelX, labelY)
+    }
+  }
+  ctx.restore()
+}
+
+export function drawPendingLine(
+  ctx: CanvasRenderingContext2D,
+  point: Point,
+  zoom: number
+) {
+  const s = 1 / zoom
+  ctx.save()
+  // Highlight the pending first point
+  ctx.strokeStyle = 'rgba(153, 27, 27, 0.9)'
+  ctx.lineWidth = 3 * s
+  ctx.beginPath()
+  ctx.arc(point.x, point.y, POINT_RADIUS * 1.8 * s, 0, Math.PI * 2)
+  ctx.stroke()
   ctx.restore()
 }
 
@@ -181,7 +323,7 @@ export function drawCalibrationPoints(
   dragIndex: number
 ) {
   const s = 1 / zoom
-  const color = '#ef4444'
+  const color = '#991b1b'
   ctx.save()
   ctx.fillStyle = color
   ctx.strokeStyle = '#fff'

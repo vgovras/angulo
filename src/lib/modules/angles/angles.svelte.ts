@@ -7,11 +7,46 @@ const LS_KEY = 'angulo:angles'
 
 export class AnglesViewModel {
   measurements = $state<AngleMeasurement[]>([])
+  pendingPoints = $state<string[]>([])
   private pointsVm: PointsViewModel
+
+  /** How many points selected so far (0-2) */
+  pendingCount = $derived(this.pendingPoints.length)
 
   constructor(pointsVm: PointsViewModel) {
     this.pointsVm = pointsVm
     this.load()
+  }
+
+  /** Select a point for building an angle (tap 3 points on canvas) */
+  selectPointForAngle(pointId: string) {
+    // If tapping the same point, deselect it
+    if (this.pendingPoints.length > 0 && this.pendingPoints[this.pendingPoints.length - 1] === pointId) {
+      this.pendingPoints = this.pendingPoints.slice(0, -1)
+      return
+    }
+
+    this.pendingPoints = [...this.pendingPoints, pointId]
+
+    if (this.pendingPoints.length >= 3) {
+      const [aId, bId, cId] = this.pendingPoints
+      this.measurements.push({
+        id: nanoid(),
+        label: '',
+        pointAId: aId,
+        pointBId: bId,
+        pointCId: cId,
+        valueDeg: null,
+      })
+      const m = this.measurements[this.measurements.length - 1]
+      this.recalc(m)
+      this.save()
+      this.pendingPoints = []
+    }
+  }
+
+  cancelPending() {
+    this.pendingPoints = []
   }
 
   add() {

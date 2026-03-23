@@ -3,12 +3,16 @@
   import type { PointsViewModel } from '$lib/modules/points/points.svelte.js'
   import type { AnglesViewModel } from '$lib/modules/angles/angles.svelte.js'
   import type { CalibrationViewModel } from '$lib/modules/calibration/calibration.svelte.js'
+  import type { LinesViewModel } from '$lib/modules/lines/lines.svelte.js'
   import type { Point } from '$lib/modules/points/points'
   import {
     drawGrid,
     drawPoints,
     drawHandle,
     drawAngles,
+    drawLines,
+    drawLineAngles,
+    drawPendingLine,
     drawCalibrationPoints,
     handleHitTest,
     calibHandleHitTest,
@@ -22,12 +26,14 @@
     pointsVm,
     anglesVm,
     calibrationVm,
+    linesVm,
     onBeforeAction,
   }: {
     canvasVm: CanvasViewModel
     pointsVm: PointsViewModel
     anglesVm: AnglesViewModel
     calibrationVm: CalibrationViewModel
+    linesVm: LinesViewModel
     onBeforeAction: () => void
   } = $props()
 
@@ -105,6 +111,37 @@
       drawHandle(ctx, pointsVm.selected, canvasVm.zoom)
     }
 
+    // Lines
+    drawLines(ctx, linesVm.measurements, pointsVm.items, canvasVm.zoom, calibrationVm.pxPerMm)
+
+    // Line angles at intersection
+    drawLineAngles(ctx, linesVm.angles, linesVm.measurements, pointsVm.items, canvasVm.zoom)
+
+    // Pending line point highlight
+    if (linesVm.pendingPointId) {
+      const pendingPt = pointsVm.items.find((p: Point) => p.id === linesVm.pendingPointId)
+      if (pendingPt) drawPendingLine(ctx, pendingPt, canvasVm.zoom)
+    }
+
+    // Pending line-angle highlight
+    if (linesVm.pendingAngleLineId) {
+      const pendingLine = linesVm.measurements.find((m) => m.id === linesVm.pendingAngleLineId)
+      if (pendingLine) {
+        const pA = pointsVm.items.find((p: Point) => p.id === pendingLine.pointAId)
+        const pB = pointsVm.items.find((p: Point) => p.id === pendingLine.pointBId)
+        if (pA && pB) {
+          drawPendingLine(ctx, pA, canvasVm.zoom)
+          drawPendingLine(ctx, pB, canvasVm.zoom)
+        }
+      }
+    }
+
+    // Pending point-angle highlights
+    for (const pid of anglesVm.pendingPoints) {
+      const pt = pointsVm.items.find((p: Point) => p.id === pid)
+      if (pt) drawPendingLine(ctx, pt, canvasVm.zoom)
+    }
+
     // Angles
     drawAngles(ctx, anglesVm.measurements, pointsVm.items, canvasVm.zoom)
 
@@ -144,6 +181,7 @@
         pointsVm.select(hit.id === pointsVm.selectedId ? null : hit.id)
         return
       }
+      pointsVm.select(null)
       isPanning = true
       lastPointerX = e.clientX
       lastPointerY = e.clientY
@@ -187,10 +225,53 @@
         return
       }
 
-      // Add new point
+      // Deselect and add new point
+      pointsVm.select(null)
       onBeforeAction()
       const snapped = canvasVm.snapPoint(x, y, calibrationVm.pxPerMm)
       pointsVm.add(snapped.x, snapped.y)
+    }
+
+    if (canvasVm.mode === 'point-angle') {
+      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
+      if (hit) {
+        onBeforeAction()
+        anglesVm.selectPointForAngle(hit.id)
+      } else {
+        anglesVm.cancelPending()
+      }
+    }
+
+    if (canvasVm.mode === 'line') {
+      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
+      if (hit) {
+        onBeforeAction()
+        linesVm.selectPoint(hit.id)
+      } else {
+        pointsVm.select(null)
+        linesVm.cancelPending()
+      }
+    }
+
+    if (canvasVm.mode === 'line-angle') {
+      // First: if a point is selected, highlight it and find its line
+      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
+      if (hit) {
+        pointsVm.select(hit.id)
+        // Find lines through this point, prefer one different from pending
+        const lines = linesVm.measurements.filter(
+          (m) => m.pointAId === hit.id || m.pointBId === hit.id
+        )
+        if (lines.length > 0) {
+          const pending = linesVm.pendingAngleLineId
+          const pick = (pending ? lines.find((l) => l.id !== pending) : null) ?? lines[0]
+          onBeforeAction()
+          linesVm.selectLineForAngle(pick.id)
+        }
+      } else {
+        pointsVm.select(null)
+        linesVm.cancelPendingAngle()
+      }
     }
   }
 
@@ -222,6 +303,7 @@
         const snapped = canvasVm.snapPoint(nx, ny, calibrationVm.pxPerMm)
         pointsVm.move(dragPointId, snapped.x, snapped.y)
         anglesVm.recalcAll()
+        linesVm.recalcAll()
       }
       lastPointerX = e.clientX
       lastPointerY = e.clientY

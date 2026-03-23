@@ -10,6 +10,9 @@
   import { Badge } from '$lib/components/ui/badge/index.js'
   import Hand from '@lucide/svelte/icons/hand'
   import MapPin from '@lucide/svelte/icons/map-pin'
+  import IconLine from './icon-line.svelte'
+  import IconPointAngle from './icon-point-angle.svelte'
+  import IconLineAngle from './icon-line-angle.svelte'
   import Ruler from '@lucide/svelte/icons/ruler'
   import Undo2 from '@lucide/svelte/icons/undo-2'
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw'
@@ -17,7 +20,7 @@
   import Trash2 from '@lucide/svelte/icons/trash-2'
   import Check from '@lucide/svelte/icons/check'
 
-  const modeIcons: Record<string, typeof Hand> = { hand: Hand, 'map-pin': MapPin, ruler: Ruler }
+  const modeIcons: Record<string, typeof Hand> = { hand: Hand, 'map-pin': MapPin, 'point-angle': IconPointAngle, line: IconLine, 'line-angle': IconLineAngle, ruler: Ruler }
 
   let {
     toolbarVm,

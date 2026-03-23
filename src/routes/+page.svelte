@@ -4,6 +4,7 @@
   import { AnglesViewModel } from '$lib/modules/angles/angles.svelte.js'
   import { CalibrationViewModel } from '$lib/modules/calibration/calibration.svelte.js'
   import { ToolbarViewModel } from '$lib/modules/toolbar/toolbar.svelte.js'
+  import { LinesViewModel } from '$lib/modules/lines/lines.svelte.js'
   import { HistoryManager } from '$lib/modules/history/history.svelte.js'
   import {
     saveCurrentImage,
@@ -18,11 +19,13 @@
   import Toolbar from '$lib/modules/toolbar/toolbar.svelte'
   import Points from '$lib/modules/points/points.svelte'
   import Angles from '$lib/modules/angles/angles.svelte'
+  import Lines from '$lib/modules/lines/lines.svelte'
   import Calibration from '$lib/modules/calibration/calibration.svelte'
 
   import * as Drawer from '$lib/components/ui/drawer/index.js'
   import * as Dialog from '$lib/components/ui/dialog/index.js'
   import * as Alert from '$lib/components/ui/alert/index.js'
+  import * as Tabs from '$lib/components/ui/tabs/index.js'
   import { Button } from '$lib/components/ui/button/index.js'
   import { Switch } from '$lib/components/ui/switch/index.js'
   import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js'
@@ -36,6 +39,9 @@
   import Trash2 from '@lucide/svelte/icons/trash-2'
   import FolderOpen from '@lucide/svelte/icons/folder-open'
   import LogOut from '@lucide/svelte/icons/log-out'
+  import MapPin from '@lucide/svelte/icons/map-pin'
+  import Settings from '@lucide/svelte/icons/settings'
+  import IconLine from '$lib/modules/toolbar/icon-line.svelte'
   import FileImage from '@lucide/svelte/icons/file-image'
   import Clock from '@lucide/svelte/icons/clock'
 
@@ -43,17 +49,18 @@
   const pointsVm = new PointsViewModel()
   const anglesVm = new AnglesViewModel(pointsVm)
   const calibrationVm = new CalibrationViewModel()
+  const linesVm = new LinesViewModel(pointsVm)
   const toolbarVm = new ToolbarViewModel()
   const history = new HistoryManager()
 
   let fileHistory = $state<FileHistoryEntry[]>(loadHistory())
 
   function takeSnapshot() {
-    history.snapshot(pointsVm, anglesVm, calibrationVm)
+    history.snapshot(pointsVm, anglesVm, linesVm, calibrationVm)
   }
 
   function handleUndo() {
-    history.undo(pointsVm, anglesVm, calibrationVm)
+    history.undo(pointsVm, anglesVm, linesVm, calibrationVm)
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -129,6 +136,7 @@
     takeSnapshot()
     pointsVm.clear()
     anglesVm.clear()
+    linesVm.clear()
     calibrationVm.reset()
     clearDialogOpen = false
     toast.success('Все очищено')
@@ -138,6 +146,7 @@
     canvasVm.clearImage()
     pointsVm.clear()
     anglesVm.clear()
+    linesVm.clear()
     calibrationVm.reset()
     await clearCurrentImage()
     closeDialogOpen = false
@@ -254,6 +263,7 @@
       {pointsVm}
       {anglesVm}
       {calibrationVm}
+      {linesVm}
       onBeforeAction={takeSnapshot}
     />
 
@@ -268,7 +278,7 @@
       onResetView={() => canvasVm.resetView()}
       onUndo={handleUndo}
       canUndo={history.canUndo}
-      onModeChange={(mode) => { if (mode !== 'point') pointsVm.select(null) }}
+      onModeChange={(mode) => { if (mode !== 'point') pointsVm.select(null); anglesVm.cancelPending(); linesVm.cancelPending(); linesVm.cancelPendingAngle() }}
       onDeletePoint={() => { if (pointsVm.selected) { takeSnapshot(); pointsVm.remove(pointsVm.selected.id) } }}
       onCalibrationConfirm={() => (calibrationDrawerOpen = true)}
     />
@@ -284,86 +294,100 @@
     <!-- Points & Angles drawer -->
     <Drawer.Root bind:open={drawerOpen}>
       <Drawer.Content>
-        <Drawer.Header>
-          <Drawer.Title>Точки та кути</Drawer.Title>
+        <Drawer.Header class="pb-0">
+          <Drawer.Title class="sr-only">Панель</Drawer.Title>
         </Drawer.Header>
-        <div class="overflow-y-auto px-4" style="max-height: calc(80vh - 5rem)">
-          <div class="space-y-4 pb-4">
-            <!-- Grid controls -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between">
-                <Label class="text-xs">Сітка</Label>
-                <Switch
-                  checked={canvasVm.gridVisible}
-                  onCheckedChange={(v) => (canvasVm.gridVisible = v)}
-                />
-              </div>
-              {#if canvasVm.gridVisible}
+        <Tabs.Root value="points" class="w-full">
+          <Tabs.List class="w-full grid grid-cols-3">
+            <Tabs.Trigger value="points" class="gap-1">
+              <MapPin class="size-4" /> Точки
+            </Tabs.Trigger>
+            <Tabs.Trigger value="lines" class="gap-1">
+              <IconLine class="size-4" /> Лінії
+            </Tabs.Trigger>
+            <Tabs.Trigger value="settings" class="gap-1">
+              <Settings class="size-4" />
+            </Tabs.Trigger>
+          </Tabs.List>
+
+          <div class="overflow-y-auto px-4" style="max-height: calc(80vh - 8rem)">
+            <Tabs.Content value="points" class="space-y-4 pb-4 pt-2">
+              <Points
+                {pointsVm}
+                {anglesVm}
+                onSelectPoint={handleSelectPoint}
+                onBeforeAction={takeSnapshot}
+              />
+              <Angles {anglesVm} {pointsVm} onBeforeAction={takeSnapshot} />
+            </Tabs.Content>
+
+            <Tabs.Content value="lines" class="space-y-4 pb-4 pt-2">
+              <Lines {linesVm} {pointsVm} {calibrationVm} onBeforeAction={takeSnapshot} />
+            </Tabs.Content>
+
+            <Tabs.Content value="settings" class="space-y-4 pb-4 pt-2">
+              <!-- Grid controls -->
+              <div class="space-y-2">
                 <div class="flex items-center justify-between">
-                  <Label class="text-xs">Snap до сітки</Label>
+                  <Label class="text-xs">Сітка</Label>
                   <Switch
-                    checked={canvasVm.snapToGrid}
-                    onCheckedChange={(v) => (canvasVm.snapToGrid = v)}
+                    checked={canvasVm.gridVisible}
+                    onCheckedChange={(v) => (canvasVm.gridVisible = v)}
                   />
                 </div>
-                <div class="flex items-center justify-between">
-                  <Label class="text-xs">Крок сітки</Label>
-                  <ToggleGroup.Root
-                    type="single"
-                    value={String(canvasVm.gridStepMm)}
-                    onValueChange={(v) => { if (v) canvasVm.gridStepMm = Number(v) }}
-                    class="gap-1"
-                  >
-                    {#each [5, 10, 20] as step}
-                      <ToggleGroup.Item value={String(step)} class="h-7 px-2 text-xs">
-                        {step} мм
-                      </ToggleGroup.Item>
-                    {/each}
-                  </ToggleGroup.Root>
-                </div>
-              {/if}
-            </div>
+                {#if canvasVm.gridVisible}
+                  <div class="flex items-center justify-between">
+                    <Label class="text-xs">Snap до сітки</Label>
+                    <Switch
+                      checked={canvasVm.snapToGrid}
+                      onCheckedChange={(v) => (canvasVm.snapToGrid = v)}
+                    />
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <Label class="text-xs">Крок сітки</Label>
+                    <ToggleGroup.Root
+                      type="single"
+                      value={String(canvasVm.gridStepMm)}
+                      onValueChange={(v) => { if (v) canvasVm.gridStepMm = Number(v) }}
+                      class="gap-1"
+                    >
+                      {#each [5, 10, 20] as step}
+                        <ToggleGroup.Item value={String(step)} class="h-7 px-2 text-xs">
+                          {step} мм
+                        </ToggleGroup.Item>
+                      {/each}
+                    </ToggleGroup.Root>
+                  </div>
+                {/if}
+              </div>
 
-            <Separator />
+              <Separator />
 
-            <!-- Points list -->
-            <Points
-              {pointsVm}
-              {anglesVm}
-              onSelectPoint={handleSelectPoint}
-              onBeforeAction={takeSnapshot}
-            />
-
-            <!-- Angles list -->
-            <Angles {anglesVm} {pointsVm} onBeforeAction={takeSnapshot} />
-
-            <Separator />
-
-            <!-- Export & Actions -->
-            <div class="flex flex-col gap-2">
-              <Button variant="outline" size="sm" onclick={handleExportImage}>
-                <Download class="size-4" /> Зберегти зображення
-              </Button>
-              <Button variant="outline" size="sm" onclick={handleCopyResults}>
-                <ClipboardCopy class="size-4" /> Копіювати результати
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onclick={() => (clearDialogOpen = true)}
-              >
-                <Trash2 class="size-4" /> Очистити все
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={() => (closeDialogOpen = true)}
-              >
-                <LogOut class="size-4" /> Закрити проект
-              </Button>
-            </div>
+              <div class="flex flex-col gap-2">
+                <Button variant="outline" size="sm" onclick={handleExportImage}>
+                  <Download class="size-4" /> Зберегти зображення
+                </Button>
+                <Button variant="outline" size="sm" onclick={handleCopyResults}>
+                  <ClipboardCopy class="size-4" /> Копіювати результати
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onclick={() => (clearDialogOpen = true)}
+                >
+                  <Trash2 class="size-4" /> Очистити все
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={() => (closeDialogOpen = true)}
+                >
+                  <LogOut class="size-4" /> Закрити проект
+                </Button>
+              </div>
+            </Tabs.Content>
           </div>
-        </div>
+        </Tabs.Root>
       </Drawer.Content>
     </Drawer.Root>
 
