@@ -86,6 +86,8 @@
   function handleCalibrationOpenChange(v: boolean) {
     calibrationDrawerOpen = v
     if (!v && calibrationVm.isCalibrated) {
+      toolbarVm.setMode('pan')
+      canvasVm.setMode('pan')
       toast.success('Масштаб налаштовано')
     }
   }
@@ -190,7 +192,7 @@
 </svelte:head>
 
 <svelte:window onkeydown={handleKeydown} />
-<Toaster />
+<Toaster position="top-center" />
 
 <main class="relative h-dvh w-full overflow-hidden">
   {#if !canvasVm.image}
