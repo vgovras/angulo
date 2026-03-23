@@ -3,6 +3,8 @@
   import type { CanvasViewModel } from '$lib/modules/canvas/canvas.svelte.js'
   import type { PointsViewModel } from '$lib/modules/points/points.svelte.js'
   import type { CalibrationViewModel } from '$lib/modules/calibration/calibration.svelte.js'
+  import type { AnnotationsViewModel } from '$lib/modules/annotations/annotations.svelte.js'
+  import { Input } from '$lib/components/ui/input/index.js'
   import { TOOL_MODES, ICONS, type ToolMode } from './toolbar'
   import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js'
   import { Button } from '$lib/components/ui/button/index.js'
@@ -14,6 +16,7 @@
   import IconRay from './icon-ray.svelte'
   import IconPointAngle from './icon-point-angle.svelte'
   import IconLineAngle from './icon-line-angle.svelte'
+  import TypeIcon from '@lucide/svelte/icons/type'
   import Ruler from '@lucide/svelte/icons/ruler'
   import Undo2 from '@lucide/svelte/icons/undo-2'
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw'
@@ -21,13 +24,14 @@
   import Trash2 from '@lucide/svelte/icons/trash-2'
   import Check from '@lucide/svelte/icons/check'
 
-  const modeIcons: Record<string, typeof Hand> = { hand: Hand, 'map-pin': MapPin, 'point-angle': IconPointAngle, line: IconLine, ray: IconRay, 'line-angle': IconLineAngle, ruler: Ruler }
+  const modeIcons: Record<string, typeof Hand> = { hand: Hand, 'map-pin': MapPin, 'point-angle': IconPointAngle, line: IconLine, ray: IconRay, 'line-angle': IconLineAngle, type: TypeIcon, ruler: Ruler }
 
   let {
     toolbarVm,
     canvasVm,
     pointsVm,
     calibrationVm,
+    annotationsVm,
     onOpenSheet,
     onResetView,
     onUndo,
@@ -41,6 +45,7 @@
     canvasVm: CanvasViewModel
     pointsVm: PointsViewModel
     calibrationVm: CalibrationViewModel
+    annotationsVm: AnnotationsViewModel
     onOpenSheet: () => void
     onResetView: () => void
     onUndo: () => void
@@ -86,6 +91,17 @@
     {#if calibrationVm.isReady}
       <Button size="sm" onclick={onCalibrationConfirm}>
         <Check class="size-4" /> Зберегти
+      </Button>
+    {/if}
+
+    {#if annotationsVm.selected}
+      <Input
+        class="h-8 w-32 text-sm"
+        value={annotationsVm.selected.text}
+        oninput={(e: Event) => annotationsVm.edit(annotationsVm.selected!.id, (e.target as HTMLInputElement).value)}
+      />
+      <Button variant="destructive" size="icon" onclick={() => { if (annotationsVm.selected) annotationsVm.remove(annotationsVm.selected.id) }}>
+        <Trash2 class="size-4" />
       </Button>
     {/if}
 

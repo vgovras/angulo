@@ -1,6 +1,7 @@
 import type { Point } from '$lib/modules/points/points'
 import type { AngleMeasurement } from '$lib/modules/angles/angles'
 import { type LineMeasurement, type LineAngle, lineIntersection } from '$lib/modules/lines/lines'
+import type { TextAnnotation } from '$lib/modules/annotations/annotations'
 
 const HANDLE_SIZE = 44
 const HANDLE_OFFSET_X = 20
@@ -412,6 +413,42 @@ export function calibHandleHitTest(
   const hx = p.x + HANDLE_OFFSET_X * s
   const hy = p.y + HANDLE_OFFSET_Y * s
   return x >= hx && x <= hx + size && y >= hy && y <= hy + size
+}
+
+export function drawAnnotations(
+  ctx: CanvasRenderingContext2D,
+  items: TextAnnotation[],
+  selectedId: string | null,
+  zoom: number
+) {
+  const s = 1 / zoom
+  ctx.save()
+  for (const a of items) {
+    const isSelected = a.id === selectedId
+    const fontSize = 16 * s
+    ctx.font = `bold ${fontSize}px sans-serif`
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+
+    // Background
+    const metrics = ctx.measureText(a.text)
+    const pad = 4 * s
+    const bw = metrics.width + pad * 2
+    const bh = fontSize + pad * 2
+    ctx.fillStyle = isSelected ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)'
+    ctx.fillRect(a.x - pad, a.y - pad, bw, bh)
+
+    if (isSelected) {
+      ctx.strokeStyle = '#fbbf24'
+      ctx.lineWidth = 2 * s
+      ctx.strokeRect(a.x - pad, a.y - pad, bw, bh)
+    }
+
+    // Text
+    ctx.fillStyle = '#fff'
+    ctx.fillText(a.text, a.x, a.y)
+  }
+  ctx.restore()
 }
 
 export { HANDLE_OFFSET_X, HANDLE_OFFSET_Y, POINT_RADIUS }

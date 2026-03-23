@@ -4,6 +4,7 @@
   import type { AnglesViewModel } from '$lib/modules/angles/angles.svelte.js'
   import type { CalibrationViewModel } from '$lib/modules/calibration/calibration.svelte.js'
   import type { LinesViewModel } from '$lib/modules/lines/lines.svelte.js'
+  import type { AnnotationsViewModel } from '$lib/modules/annotations/annotations.svelte.js'
   import type { Point } from '$lib/modules/points/points'
   import {
     drawGrid,
@@ -14,6 +15,7 @@
     drawLineAngles,
     drawPendingLine,
     drawCalibrationPoints,
+    drawAnnotations,
     handleHitTest,
     calibHandleHitTest,
     HANDLE_OFFSET_X,
@@ -27,6 +29,7 @@
     anglesVm,
     calibrationVm,
     linesVm,
+    annotationsVm,
     onBeforeAction,
   }: {
     canvasVm: CanvasViewModel
@@ -34,6 +37,7 @@
     anglesVm: AnglesViewModel
     calibrationVm: CalibrationViewModel
     linesVm: LinesViewModel
+    annotationsVm: AnnotationsViewModel
     onBeforeAction: () => void
   } = $props()
 
@@ -48,6 +52,7 @@
   let lastPointerY = 0
   let dragPointId: string | null = null
   let dragCalibIndex: number = -1
+  let dragAnnotationId: string | null = null
 
   // Pinch zoom
   let pointers = new Map<number, PointerEvent>()
@@ -145,6 +150,9 @@
     // Angles
     drawAngles(ctx, anglesVm.measurements, pointsVm.items, canvasVm.zoom)
 
+    // Text annotations
+    drawAnnotations(ctx, annotationsVm.items, annotationsVm.selectedId, canvasVm.zoom)
+
     animFrame = requestAnimationFrame(render)
   }
 
@@ -175,13 +183,25 @@
         lastPointerY = e.clientY
         return
       }
+      // Allow selecting/dragging text annotations
+      const annoHit = annotationsVm.hitTest(x, y, 30 / canvasVm.zoom)
+      if (annoHit) {
+        annotationsVm.select(annoHit.id)
+        isDragging = true
+        dragAnnotationId = annoHit.id
+        lastPointerX = e.clientX
+        lastPointerY = e.clientY
+        return
+      }
       // Also allow selecting/deselecting points by tapping on them
       const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
       if (hit) {
+        annotationsVm.select(null)
         pointsVm.select(hit.id === pointsVm.selectedId ? null : hit.id)
         return
       }
       pointsVm.select(null)
+      annotationsVm.select(null)
       isPanning = true
       lastPointerX = e.clientX
       lastPointerY = e.clientY
@@ -273,6 +293,22 @@
         linesVm.cancelPendingAngle()
       }
     }
+
+    if (canvasVm.mode === 'text') {
+      // Try selecting/dragging existing annotation
+      const hit = annotationsVm.hitTest(x, y, 30 / canvasVm.zoom)
+      if (hit) {
+        annotationsVm.select(hit.id)
+        isDragging = true
+        dragAnnotationId = hit.id
+        lastPointerX = e.clientX
+        lastPointerY = e.clientY
+      } else {
+        // Add new text annotation
+        onBeforeAction()
+        annotationsVm.add(x, y)
+      }
+    }
   }
 
   function onPointerMove(e: PointerEvent) {
@@ -319,6 +355,15 @@
       lastPointerX = e.clientX
       lastPointerY = e.clientY
     }
+
+    if (isDragging && dragAnnotationId) {
+      const dx = (e.clientX - lastPointerX) / canvasVm.zoom
+      const dy = (e.clientY - lastPointerY) / canvasVm.zoom
+      const a = annotationsVm.items.find((a) => a.id === dragAnnotationId)
+      if (a) annotationsVm.move(dragAnnotationId, a.x + dx, a.y + dy)
+      lastPointerX = e.clientX
+      lastPointerY = e.clientY
+    }
   }
 
   function onPointerUp(e: PointerEvent) {
@@ -331,6 +376,7 @@
       isDragging = false
       dragPointId = null
       dragCalibIndex = -1
+      dragAnnotationId = null
     }
   }
 

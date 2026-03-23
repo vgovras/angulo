@@ -1,4 +1,4 @@
-export type ToolMode = 'pan' | 'point' | 'point-angle' | 'line' | 'ray' | 'line-angle' | 'calibrate'
+export type ToolMode = 'pan' | 'point' | 'point-angle' | 'line' | 'ray' | 'line-angle' | 'text' | 'calibrate'
 
 export const TOOL_MODES: { value: ToolMode; label: string; icon: string }[] = [
   { value: 'pan', label: 'Рухати', icon: 'hand' },
@@ -7,6 +7,7 @@ export const TOOL_MODES: { value: ToolMode; label: string; icon: string }[] = [
   { value: 'line', label: 'Лінія', icon: 'line' },
   { value: 'ray', label: 'Промінь', icon: 'ray' },
   { value: 'line-angle', label: 'Кут ліній', icon: 'line-angle' },
+  { value: 'text', label: 'Текст', icon: 'type' },
   { value: 'calibrate', label: 'Калібрувати', icon: 'ruler' },
 ]
 

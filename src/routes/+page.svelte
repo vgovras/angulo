@@ -5,6 +5,7 @@
   import { CalibrationViewModel } from '$lib/modules/calibration/calibration.svelte.js'
   import { ToolbarViewModel } from '$lib/modules/toolbar/toolbar.svelte.js'
   import { LinesViewModel } from '$lib/modules/lines/lines.svelte.js'
+  import { AnnotationsViewModel } from '$lib/modules/annotations/annotations.svelte.js'
   import { HistoryManager } from '$lib/modules/history/history.svelte.js'
   import {
     saveCurrentImage,
@@ -52,6 +53,7 @@
   const anglesVm = new AnglesViewModel(pointsVm)
   const calibrationVm = new CalibrationViewModel()
   const linesVm = new LinesViewModel(pointsVm)
+  const annotationsVm = new AnnotationsViewModel()
   const toolbarVm = new ToolbarViewModel()
   const history = new HistoryManager()
 
@@ -139,6 +141,7 @@
     pointsVm.clear()
     anglesVm.clear()
     linesVm.clear()
+    annotationsVm.clear()
     calibrationVm.reset()
     clearDialogOpen = false
     toast.success('Все очищено')
@@ -149,6 +152,7 @@
     pointsVm.clear()
     anglesVm.clear()
     linesVm.clear()
+    annotationsVm.clear()
     calibrationVm.reset()
     await clearCurrentImage()
     closeDialogOpen = false
@@ -189,6 +193,7 @@
       angles: $state.snapshot(anglesVm.measurements),
       lines: $state.snapshot(linesVm.measurements),
       lineAngles: $state.snapshot(linesVm.angles),
+      annotations: $state.snapshot(annotationsVm.items),
       calibration: calibrationVm.pxPerMm,
     }
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
@@ -222,6 +227,7 @@
       if (data.angles) anglesVm.restore(data.angles)
       if (data.lines) linesVm.restore(data.lines)
       if (data.lineAngles) { linesVm.angles = data.lineAngles; linesVm.recalcAll() }
+      if (data.annotations) annotationsVm.restore(data.annotations)
       if (data.calibration !== undefined) calibrationVm.restore(data.calibration)
       toast.success('Проект завантажено')
     } catch {
@@ -339,6 +345,7 @@
       {anglesVm}
       {calibrationVm}
       {linesVm}
+      {annotationsVm}
       onBeforeAction={takeSnapshot}
     />
 
@@ -348,6 +355,7 @@
       {canvasVm}
       {pointsVm}
       {calibrationVm}
+      {annotationsVm}
       calibrationStatus={calibrationVm.statusLabel}
       onOpenSheet={() => (drawerOpen = true)}
       onResetView={() => canvasVm.resetView()}
