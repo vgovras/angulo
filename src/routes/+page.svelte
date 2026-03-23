@@ -43,6 +43,8 @@
   import Settings from '@lucide/svelte/icons/settings'
   import IconLine from '$lib/modules/toolbar/icon-line.svelte'
   import FileImage from '@lucide/svelte/icons/file-image'
+  import FileDown from '@lucide/svelte/icons/file-down'
+  import FileUp from '@lucide/svelte/icons/file-up'
   import Clock from '@lucide/svelte/icons/clock'
 
   const canvasVm = new CanvasViewModel()
@@ -166,6 +168,68 @@
     toast.success('Зображення збережено')
   }
 
+  async function handleExportJson() {
+    let imageBase64: string | null = null
+    // Convert current image to base64
+    try {
+      const blob = await loadCurrentImage()
+      if (blob) {
+        imageBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(blob)
+        })
+      }
+    } catch {}
+
+    const data = {
+      version: 1,
+      image: imageBase64,
+      points: $state.snapshot(pointsVm.items),
+      angles: $state.snapshot(anglesVm.measurements),
+      lines: $state.snapshot(linesVm.measurements),
+      lineAngles: $state.snapshot(linesVm.angles),
+      calibration: calibrationVm.pxPerMm,
+    }
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
+    const link = document.createElement('a')
+    link.download = 'angulo-project.json'
+    link.href = URL.createObjectURL(blob)
+    link.click()
+    URL.revokeObjectURL(link.href)
+    toast.success('Проект збережено')
+  }
+
+  let jsonInput = $state<HTMLInputElement | null>(null)
+
+  async function handleImportJson(e: Event) {
+    const input = e.target as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+
+      // Restore image
+      if (data.image) {
+        const res = await fetch(data.image)
+        const blob = await res.blob()
+        await canvasVm.loadImage(blob)
+        await saveCurrentImage(blob)
+      }
+
+      if (data.points) pointsVm.restore(data.points, null)
+      if (data.angles) anglesVm.restore(data.angles)
+      if (data.lines) linesVm.restore(data.lines)
+      if (data.lineAngles) { linesVm.angles = data.lineAngles; linesVm.recalcAll() }
+      if (data.calibration !== undefined) calibrationVm.restore(data.calibration)
+      toast.success('Проект завантажено')
+    } catch {
+      toast.error('Не вдалося прочитати файл')
+    }
+    input.value = ''
+  }
+
   function handleCopyResults() {
     let text = 'Точки:\n'
     for (const p of pointsVm.items) {
@@ -227,6 +291,17 @@
           accept="image/jpeg,image/png,image/webp"
           class="hidden"
           onchange={handleFileSelect}
+        />
+
+        <Button variant="outline" class="w-full" onclick={() => jsonInput?.click()}>
+          <FileUp class="size-4" /> Відкрити проект (.json)
+        </Button>
+        <input
+          bind:this={jsonInput}
+          type="file"
+          accept="application/json,.json"
+          class="hidden"
+          onchange={handleImportJson}
         />
 
         <!-- File history -->
@@ -369,6 +444,9 @@
                 </Button>
                 <Button variant="outline" size="sm" onclick={handleCopyResults}>
                   <ClipboardCopy class="size-4" /> Копіювати результати
+                </Button>
+                <Button variant="outline" size="sm" onclick={handleExportJson}>
+                  <FileDown class="size-4" /> Зберегти проект (.json)
                 </Button>
                 <Button
                   variant="destructive"

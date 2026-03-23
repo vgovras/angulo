@@ -61,27 +61,27 @@
 </script>
 
 <div
-  class="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between gap-2 border-t border-border bg-background/95 px-3 py-2 backdrop-blur-sm"
+  class="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-2 border-t border-border bg-background/95 px-2 py-2 backdrop-blur-sm"
 >
-  <ToggleGroup.Root
-    type="single"
-    variant="outline"
-    size="lg"
-    value={toolbarVm.mode}
-    onValueChange={handleModeChange}
-  >
-    {#each TOOL_MODES as mode}
-      <ToggleGroup.Item value={mode.value}>
-        <svelte:component this={modeIcons[mode.icon]} class="size-5" />
-      </ToggleGroup.Item>
-    {/each}
-  </ToggleGroup.Root>
+  <div class="flex-1 overflow-x-auto scrollbar-none">
+    <ToggleGroup.Root
+      type="single"
+      variant="outline"
+      size="lg"
+      value={toolbarVm.mode}
+      onValueChange={handleModeChange}
+      class="w-max"
+    >
+      {#each TOOL_MODES as mode}
+        <ToggleGroup.Item value={mode.value} class="flex-col gap-0 h-auto py-1.5 px-2 shrink-0">
+          <svelte:component this={modeIcons[mode.icon]} class="size-5" />
+          <span class="text-[9px] leading-none">{mode.label}</span>
+        </ToggleGroup.Item>
+      {/each}
+    </ToggleGroup.Root>
+  </div>
 
   <div class="flex items-center gap-1">
-    <Badge variant="outline" class="text-[10px] shrink-0">
-      {calibrationStatus}
-    </Badge>
-
     {#if calibrationVm.isReady}
       <Button size="sm" onclick={onCalibrationConfirm}>
         <Check class="size-4" /> Зберегти
@@ -106,15 +106,6 @@
         </Button>
       </Tooltip.Trigger>
       <Tooltip.Content>Відмінити (Ctrl+Z)</Tooltip.Content>
-    </Tooltip.Root>
-
-    <Tooltip.Root>
-      <Tooltip.Trigger>
-        <Button variant="ghost" size="icon" onclick={onResetView}>
-          <RotateCcw class="size-4" />
-        </Button>
-      </Tooltip.Trigger>
-      <Tooltip.Content>Скинути вигляд</Tooltip.Content>
     </Tooltip.Root>
 
     <Tooltip.Root>
