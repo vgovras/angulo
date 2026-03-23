@@ -11,6 +11,7 @@
     drawAngles,
     drawCalibrationPoints,
     handleHitTest,
+    calibHandleHitTest,
     HANDLE_OFFSET_X,
     HANDLE_OFFSET_Y,
     POINT_RADIUS,
@@ -21,14 +22,12 @@
     pointsVm,
     anglesVm,
     calibrationVm,
-    onCalibrationReady,
     onBeforeAction,
   }: {
     canvasVm: CanvasViewModel
     pointsVm: PointsViewModel
     anglesVm: AnglesViewModel
     calibrationVm: CalibrationViewModel
-    onCalibrationReady: () => void
     onBeforeAction: () => void
   } = $props()
 
@@ -42,6 +41,7 @@
   let lastPointerX = 0
   let lastPointerY = 0
   let dragPointId: string | null = null
+  let dragCalibIndex: number = -1
 
   // Pinch zoom
   let pointers = new Map<number, PointerEvent>()
@@ -94,7 +94,7 @@
 
     // Calibration points
     if (calibrationVm.isCalibrating && calibrationVm.pending.length > 0) {
-      drawCalibrationPoints(ctx, calibrationVm.pending, canvasVm.zoom)
+      drawCalibrationPoints(ctx, calibrationVm.pending, canvasVm.zoom, dragCalibIndex)
     }
 
     // Points
@@ -129,6 +129,21 @@
     const { x, y } = canvasVm.screenToImage(sx, sy)
 
     if (canvasVm.mode === 'pan') {
+      // In pan mode, still allow dragging selected point via handle
+      if (pointsVm.selected && handleHitTest(pointsVm.selected, x, y, canvasVm.zoom)) {
+        onBeforeAction()
+        isDragging = true
+        dragPointId = pointsVm.selected.id
+        lastPointerX = e.clientX
+        lastPointerY = e.clientY
+        return
+      }
+      // Also allow selecting/deselecting points by tapping on them
+      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
+      if (hit) {
+        pointsVm.select(hit.id === pointsVm.selectedId ? null : hit.id)
+        return
+      }
       isPanning = true
       lastPointerX = e.clientX
       lastPointerY = e.clientY
@@ -139,10 +154,18 @@
       if (!calibrationVm.isCalibrating) {
         calibrationVm.start()
       }
-      calibrationVm.addPoint(x, y)
-      if (calibrationVm.pending.length >= 2) {
-        onCalibrationReady()
+      // Try dragging existing calibration point via handle
+      for (let i = 0; i < calibrationVm.pending.length; i++) {
+        if (calibHandleHitTest(calibrationVm.pending[i], x, y, canvasVm.zoom)) {
+          isDragging = true
+          dragCalibIndex = i
+          lastPointerX = e.clientX
+          lastPointerY = e.clientY
+          return
+        }
       }
+      // Add new calibration point (max 2)
+      calibrationVm.addPoint(x, y)
       return
     }
 
@@ -203,6 +226,17 @@
       lastPointerX = e.clientX
       lastPointerY = e.clientY
     }
+
+    if (isDragging && dragCalibIndex >= 0) {
+      const dx = (e.clientX - lastPointerX) / canvasVm.zoom
+      const dy = (e.clientY - lastPointerY) / canvasVm.zoom
+      const p = calibrationVm.pending[dragCalibIndex]
+      if (p) {
+        calibrationVm.movePoint(dragCalibIndex, p.x + dx, p.y + dy)
+      }
+      lastPointerX = e.clientX
+      lastPointerY = e.clientY
+    }
   }
 
   function onPointerUp(e: PointerEvent) {
@@ -214,6 +248,7 @@
       isPanning = false
       isDragging = false
       dragPointId = null
+      dragCalibIndex = -1
     }
   }
 

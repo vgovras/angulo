@@ -8,6 +8,8 @@ export class CalibrationViewModel {
   pending = $state<{ x: number; y: number }[]>([])
 
   isCalibrated = $derived(this.pxPerMm !== null)
+  /** Both calibration points placed, ready to confirm */
+  isReady = $derived(this.isCalibrating && this.pending.length >= 2)
   statusLabel = $derived(
     this.pxPerMm
       ? `1 см = ${(this.pxPerMm * 10).toFixed(1)}px`
@@ -24,7 +26,26 @@ export class CalibrationViewModel {
   }
 
   addPoint(x: number, y: number) {
-    this.pending = [...this.pending, { x, y }]
+    if (this.pending.length < 2) {
+      this.pending = [...this.pending, { x, y }]
+    }
+  }
+
+  movePoint(index: number, x: number, y: number) {
+    if (this.pending[index]) {
+      this.pending[index].x = x
+      this.pending[index].y = y
+    }
+  }
+
+  hitTest(x: number, y: number, radius: number): number {
+    for (let i = this.pending.length - 1; i >= 0; i--) {
+      const p = this.pending[i]
+      const dx = p.x - x
+      const dy = p.y - y
+      if (dx * dx + dy * dy <= radius * radius) return i
+    }
+    return -1
   }
 
   confirm(distanceMm: number) {

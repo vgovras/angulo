@@ -55,7 +55,7 @@
         />
       </div>
       <Drawer.Footer class="px-0">
-        <Button class="flex-1" onclick={handleConfirm}>Підтвердити</Button>
+        <Button size="lg" class="w-full" onclick={handleConfirm}>Підтвердити</Button>
         <Drawer.Close>
           <Button variant="outline" class="w-full" onclick={() => { onBeforeAction(); calibrationVm.reset(); onOpenChange(false) }}>
             Скинути

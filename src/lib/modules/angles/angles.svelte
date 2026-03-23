@@ -81,7 +81,7 @@
                     })()}
                   {/snippet}
                 </Select.Trigger>
-                <Select.Content>
+                <Select.Content side="top" sideOffset={4}>
                   {#each pointsVm.items as point (point.id)}
                     <Select.Item value={point.id}>{point.label}</Select.Item>
                   {/each}

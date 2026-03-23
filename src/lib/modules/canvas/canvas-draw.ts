@@ -177,11 +177,13 @@ export function drawAngles(
 export function drawCalibrationPoints(
   ctx: CanvasRenderingContext2D,
   points: { x: number; y: number }[],
-  zoom: number
+  zoom: number,
+  dragIndex: number
 ) {
   const s = 1 / zoom
+  const color = '#ef4444'
   ctx.save()
-  ctx.fillStyle = '#ef4444'
+  ctx.fillStyle = color
   ctx.strokeStyle = '#fff'
   ctx.lineWidth = 2 * s
   for (const p of points) {
@@ -192,7 +194,7 @@ export function drawCalibrationPoints(
   }
   if (points.length === 2) {
     ctx.setLineDash([5 * s, 5 * s])
-    ctx.strokeStyle = '#ef4444'
+    ctx.strokeStyle = color
     ctx.lineWidth = 1.5 * s
     ctx.beginPath()
     ctx.moveTo(points[0].x, points[0].y)
@@ -200,7 +202,63 @@ export function drawCalibrationPoints(
     ctx.stroke()
     ctx.setLineDash([])
   }
+  // Draw handles for each calibration point
+  for (const p of points) {
+    drawCalibHandle(ctx, p, s, color)
+  }
   ctx.restore()
+}
+
+function drawCalibHandle(
+  ctx: CanvasRenderingContext2D,
+  p: { x: number; y: number },
+  s: number,
+  color: string
+) {
+  const size = HANDLE_SIZE * s
+  const hx = p.x + HANDLE_OFFSET_X * s
+  const hy = p.y + HANDLE_OFFSET_Y * s
+
+  ctx.save()
+  ctx.setLineDash([3 * s, 3 * s])
+  ctx.beginPath()
+  ctx.moveTo(p.x, p.y)
+  ctx.lineTo(hx + size / 2, hy + size / 2)
+  ctx.strokeStyle = color
+  ctx.lineWidth = 1 * s
+  ctx.stroke()
+  ctx.setLineDash([])
+
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'
+  ctx.strokeStyle = color
+  ctx.lineWidth = 2 * s
+  ctx.fillRect(hx, hy, size, size)
+  ctx.strokeRect(hx, hy, size, size)
+
+  const cx = hx + size / 2
+  const cy = hy + size / 2
+  ctx.strokeStyle = color
+  ctx.lineWidth = 2 * s
+  ctx.beginPath()
+  ctx.moveTo(cx - 8 * s, cy)
+  ctx.lineTo(cx + 8 * s, cy)
+  ctx.moveTo(cx, cy - 8 * s)
+  ctx.lineTo(cx, cy + 8 * s)
+  ctx.stroke()
+  ctx.restore()
+}
+
+export function calibHandleHitTest(
+  p: { x: number; y: number },
+  x: number,
+  y: number,
+  zoom: number
+): boolean {
+  const s = 1 / zoom
+  const size = HANDLE_SIZE * s
+  const hx = p.x + HANDLE_OFFSET_X * s
+  const hy = p.y + HANDLE_OFFSET_Y * s
+  return x >= hx && x <= hx + size && y >= hy && y <= hy + size
 }
 
 export { HANDLE_OFFSET_X, HANDLE_OFFSET_Y, POINT_RADIUS }

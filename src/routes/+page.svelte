@@ -83,10 +83,6 @@
     restoreImage()
   })
 
-  function handleCalibrationReady() {
-    calibrationDrawerOpen = true
-  }
-
   function handleCalibrationOpenChange(v: boolean) {
     calibrationDrawerOpen = v
     if (!v && calibrationVm.isCalibrated) {
@@ -256,7 +252,6 @@
       {pointsVm}
       {anglesVm}
       {calibrationVm}
-      onCalibrationReady={handleCalibrationReady}
       onBeforeAction={takeSnapshot}
     />
 
@@ -264,12 +259,16 @@
     <Toolbar
       {toolbarVm}
       {canvasVm}
+      {pointsVm}
+      {calibrationVm}
       calibrationStatus={calibrationVm.statusLabel}
       onOpenSheet={() => (drawerOpen = true)}
       onResetView={() => canvasVm.resetView()}
       onUndo={handleUndo}
       canUndo={history.canUndo}
-      onModeChange={(mode) => { if (mode === 'pan') pointsVm.select(null) }}
+      onModeChange={(mode) => { if (mode !== 'point') pointsVm.select(null) }}
+      onDeletePoint={() => { if (pointsVm.selected) { takeSnapshot(); pointsVm.remove(pointsVm.selected.id) } }}
+      onCalibrationConfirm={() => (calibrationDrawerOpen = true)}
     />
 
     <!-- Calibration sheet -->
