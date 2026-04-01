@@ -158,6 +158,7 @@
 
   function onPointerDown(e: PointerEvent) {
     if (!el) return
+    if (pointsVm.pending) return
     el.setPointerCapture(e.pointerId)
     pointers.set(e.pointerId, e)
 
@@ -245,11 +246,10 @@
         return
       }
 
-      // Deselect and add new point
+      // Deselect and show landmark picker
       pointsVm.select(null)
-      onBeforeAction()
       const snapped = canvasVm.snapPoint(x, y, calibrationVm.pxPerMm)
-      pointsVm.add(snapped.x, snapped.y)
+      pointsVm.beginAdd(snapped.x, snapped.y, e.clientX, e.clientY)
     }
 
     if (canvasVm.mode === 'point-angle') {

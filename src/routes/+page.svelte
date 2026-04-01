@@ -22,6 +22,7 @@
   import Angles from '$lib/modules/angles/angles.svelte'
   import Lines from '$lib/modules/lines/lines.svelte'
   import Calibration from '$lib/modules/calibration/calibration.svelte'
+  import LandmarkPicker from '$lib/modules/points/landmark-picker.svelte'
 
   import * as Drawer from '$lib/components/ui/drawer/index.js'
   import * as Dialog from '$lib/components/ui/dialog/index.js'
@@ -348,6 +349,17 @@
       {annotationsVm}
       onBeforeAction={takeSnapshot}
     />
+
+    {#if pointsVm.pending}
+      <LandmarkPicker
+        {pointsVm}
+        onConfirm={(label) => {
+          takeSnapshot()
+          pointsVm.confirmAdd(label)
+        }}
+        onCancel={() => pointsVm.cancelAdd()}
+      />
+    {/if}
 
     <!-- Toolbar -->
     <Toolbar

@@ -6,6 +6,19 @@ export interface Point {
   color: string
 }
 
+export const CEPH_LANDMARKS = [
+  'N', 'S', 'A', 'B', 'Or', 'Ar', 'Po', 'Pt', 'Ba',
+  'Me', 'Go', 'Gn', 'Co', 'L', 'N1', 'A1', 'B1',
+  'Me1', 'Pog1', '1+', '1-', 'ii+', 'ii-', 'UL', 'LL', 'PNS', 'ANS',
+]
+
+export interface PendingPoint {
+  x: number
+  y: number
+  screenX: number
+  screenY: number
+}
+
 export const POINT_COLORS = [
   '#f97316', // orange
   '#06b6d4', // cyan

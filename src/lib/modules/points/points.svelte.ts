@@ -1,15 +1,18 @@
 import { nanoid } from 'nanoid'
-import { type Point, POINT_COLORS } from './points'
+import { type Point, type PendingPoint, POINT_COLORS } from './points'
 
 const LS_KEY = 'angulo:points'
 
 export class PointsViewModel {
   items = $state<Point[]>([])
   selectedId = $state<string | null>(null)
+  pending = $state<PendingPoint | null>(null)
 
   selected = $derived(
     this.items.find((p) => p.id === this.selectedId) ?? null
   )
+
+  usedLabels = $derived(new Set(this.items.map((p) => p.label)))
 
   constructor() {
     this.load()
@@ -25,6 +28,28 @@ export class PointsViewModel {
       color: POINT_COLORS[index % POINT_COLORS.length],
     })
     this.save()
+  }
+
+  beginAdd(x: number, y: number, screenX: number, screenY: number) {
+    this.pending = { x, y, screenX, screenY }
+  }
+
+  confirmAdd(label: string) {
+    if (!this.pending) return
+    const index = this.items.length
+    this.items.push({
+      id: nanoid(),
+      label,
+      x: this.pending.x,
+      y: this.pending.y,
+      color: POINT_COLORS[index % POINT_COLORS.length],
+    })
+    this.pending = null
+    this.save()
+  }
+
+  cancelAdd() {
+    this.pending = null
   }
 
   move(id: string, x: number, y: number) {
