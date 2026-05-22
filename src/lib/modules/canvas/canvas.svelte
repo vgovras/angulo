@@ -45,46 +45,42 @@
   let container = $state<HTMLDivElement | null>(null)
   let animFrame = 0
 
-  // Cascading visibility: hiding an angle hides the points/lines that compose it,
-  // unless another visible angle (or no angle at all) keeps them on screen.
-  //
-  // A line is "claimed" by an angle when:
-  //   - the angle is a LineAngle that lists the line in lineAId/lineBId, OR
-  //   - the angle is a 3-point angle whose ray endpoints (A↔B or B↔C) match the
-  //     line's endpoints — so visually it composes the angle's rays.
-  // A line is visible iff: nothing claims it (standalone), or ≥1 visible angle claims it.
+  // Visibility priority: angle > line > point. A visible angle FORCES its
+  // constituent lines (and their endpoint points) visible — overriding any
+  // explicit hide flag on them. A hidden angle has no special effect; lines
+  // and points then follow their own flags and the natural endpoint cascade.
   const visibleLineIds = $derived.by(() => {
-    const claimed = new Map<string, boolean>()
-    const claim = (lineId: string, isVisible: boolean) => {
-      claimed.set(lineId, (claimed.get(lineId) ?? false) || isVisible)
-    }
-
-    for (const a of linesVm.angles) {
-      const v = a.visible !== false
-      if (a.lineAId) claim(a.lineAId, v)
-      if (a.lineBId) claim(a.lineBId, v)
-    }
-
-    for (const m of anglesVm.measurements) {
-      if (!m.pointAId || !m.pointBId || !m.pointCId) continue
-      const v = m.visible !== false
-      for (const line of linesVm.measurements) {
-        const isRay1 =
-          (line.pointAId === m.pointAId && line.pointBId === m.pointBId) ||
-          (line.pointAId === m.pointBId && line.pointBId === m.pointAId)
-        const isRay2 =
-          (line.pointAId === m.pointBId && line.pointBId === m.pointCId) ||
-          (line.pointAId === m.pointCId && line.pointBId === m.pointBId)
-        if (isRay1 || isRay2) claim(line.id, v)
-      }
-    }
-
     const ids = new Set<string>()
+
     for (const m of linesVm.measurements) {
-      if (m.visible === false) continue // user explicitly hid this line
-      const hasVisibleClaim = claimed.get(m.id)
-      if (hasVisibleClaim === undefined || hasVisibleClaim === true) ids.add(m.id)
+      let visible = m.visible !== false // start with the line's own flag
+
+      // Pulled in by a visible 3-point angle whose ray endpoints match this line
+      if (!visible) {
+        for (const angle of anglesVm.measurements) {
+          if (angle.visible === false) continue
+          if (!angle.pointAId || !angle.pointBId || !angle.pointCId) continue
+          const isRay1 =
+            (m.pointAId === angle.pointAId && m.pointBId === angle.pointBId) ||
+            (m.pointAId === angle.pointBId && m.pointBId === angle.pointAId)
+          const isRay2 =
+            (m.pointAId === angle.pointBId && m.pointBId === angle.pointCId) ||
+            (m.pointAId === angle.pointCId && m.pointBId === angle.pointBId)
+          if (isRay1 || isRay2) { visible = true; break }
+        }
+      }
+
+      // Pulled in by a visible line-angle
+      if (!visible) {
+        for (const la of linesVm.angles) {
+          if (la.visible === false) continue
+          if (la.lineAId === m.id || la.lineBId === m.id) { visible = true; break }
+        }
+      }
+
+      if (visible) ids.add(m.id)
     }
+
     return ids
   })
 
@@ -120,15 +116,6 @@
     }
     for (const p of pointsVm.items) {
       if (!referenced.has(p.id)) ids.add(p.id)
-    }
-
-    // Forced cascade: an explicitly-hidden line always hides its endpoint points,
-    // even if another visible angle/line still references them.
-    for (const line of linesVm.measurements) {
-      if (line.visible === false) {
-        ids.delete(line.pointAId)
-        ids.delete(line.pointBId)
-      }
     }
 
     return ids
