@@ -8,6 +8,8 @@
   import { Separator } from '$lib/components/ui/separator/index.js'
   import X from '@lucide/svelte/icons/x'
   import Plus from '@lucide/svelte/icons/plus'
+  import Eye from '@lucide/svelte/icons/eye'
+  import EyeOff from '@lucide/svelte/icons/eye-off'
 
   let {
     anglesVm,
@@ -33,13 +35,23 @@
 
 <div class="space-y-2">
   <Separator />
-  <div class="flex items-center justify-between">
+  <div class="flex items-center justify-between gap-2">
     <h3 class="text-sm font-semibold">
       Кути ({anglesVm.measurements.length})
     </h3>
-    <Button variant="outline" size="xs" onclick={() => { onBeforeAction(); anglesVm.add() }}>
-      <Plus class="size-3" /> Кут
-    </Button>
+    <div class="flex items-center gap-1">
+      {#if anglesVm.measurements.length > 0}
+        <Button variant="ghost" size="xs" onclick={() => anglesVm.setAllVisible(false)}>
+          <EyeOff class="size-3" />
+        </Button>
+        <Button variant="ghost" size="xs" onclick={() => anglesVm.setAllVisible(true)}>
+          <Eye class="size-3" />
+        </Button>
+      {/if}
+      <Button variant="outline" size="xs" onclick={() => { onBeforeAction(); anglesVm.add() }}>
+        <Plus class="size-3" /> Кут
+      </Button>
+    </div>
   </div>
 
   {#if anglesVm.measurements.length === 0}
@@ -49,20 +61,33 @@
   {:else}
     <div class="space-y-3">
       {#each anglesVm.measurements as m (m.id)}
-        <div class="space-y-1 rounded-md border p-2">
+        <div class="space-y-1 rounded-md border p-2" class:opacity-50={m.visible === false}>
           <div class="flex items-center justify-between">
             {#if m.valueDeg !== null}
               <Badge>&#x2220;{m.label}: {m.valueDeg}&deg;</Badge>
             {:else}
               <Badge variant="outline">Оберіть 3 точки</Badge>
             {/if}
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onclick={() => { onBeforeAction(); anglesVm.remove(m.id) }}
-            >
-              <X class="size-3" />
-            </Button>
+            <div class="flex items-center">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onclick={() => anglesVm.setVisible(m.id, m.visible === false)}
+              >
+                {#if m.visible === false}
+                  <EyeOff class="size-3" />
+                {:else}
+                  <Eye class="size-3" />
+                {/if}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onclick={() => { onBeforeAction(); anglesVm.remove(m.id) }}
+              >
+                <X class="size-3" />
+              </Button>
+            </div>
           </div>
 
           <div class="grid grid-cols-3 gap-1">

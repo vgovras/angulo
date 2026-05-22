@@ -16,6 +16,8 @@ export class LinesViewModel {
 
   hasPending = $derived(this.pendingPointId !== null)
 
+  visibleAngles = $derived(this.angles.filter((a) => a.visible !== false))
+
   constructor(pointsVm: PointsViewModel) {
     this.pointsVm = pointsVm
     this.load()
@@ -37,6 +39,7 @@ export class LinesViewModel {
           pointBId: pointId,
           lengthPx: distancePx(a, b),
           isRay,
+          visible: true,
         })
         this.save()
       }
@@ -60,6 +63,7 @@ export class LinesViewModel {
         lineAId: this.pendingAngleLineId,
         lineBId: lineId,
         valueDeg: null,
+        visible: true,
       })
       const a = this.angles[this.angles.length - 1]
       this.recalcAngle(a)
@@ -78,6 +82,7 @@ export class LinesViewModel {
       lineAId: '',
       lineBId: '',
       valueDeg: null,
+      visible: true,
     })
     this.saveAngles()
   }
@@ -93,6 +98,32 @@ export class LinesViewModel {
 
   removeAngle(id: string) {
     this.angles = this.angles.filter((a) => a.id !== id)
+    this.saveAngles()
+  }
+
+  setVisible(id: string, visible: boolean) {
+    const m = this.measurements.find((m) => m.id === id)
+    if (m) {
+      m.visible = visible
+      this.save()
+    }
+  }
+
+  setAllVisible(visible: boolean) {
+    for (const m of this.measurements) m.visible = visible
+    this.save()
+  }
+
+  setAngleVisible(id: string, visible: boolean) {
+    const a = this.angles.find((a) => a.id === id)
+    if (a) {
+      a.visible = visible
+      this.saveAngles()
+    }
+  }
+
+  setAllAnglesVisible(visible: boolean) {
+    for (const a of this.angles) a.visible = visible
     this.saveAngles()
   }
 

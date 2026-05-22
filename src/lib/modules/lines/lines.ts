@@ -5,6 +5,7 @@ export interface LineMeasurement {
   pointBId: string
   lengthPx: number | null
   isRay?: boolean
+  visible?: boolean
 }
 
 export interface LineAngle {
@@ -12,6 +13,7 @@ export interface LineAngle {
   lineAId: string
   lineBId: string
   valueDeg: number | null
+  visible?: boolean
 }
 
 /** Find intersection point of two line segments (extended to infinity) */

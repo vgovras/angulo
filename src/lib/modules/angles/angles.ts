@@ -7,6 +7,7 @@ export interface AngleMeasurement {
   pointBId: string
   pointCId: string
   valueDeg: number | null
+  visible?: boolean
 }
 
 export function calcAngle(a: Point, b: Point, c: Point): number {

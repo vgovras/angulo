@@ -45,6 +45,102 @@
   let container = $state<HTMLDivElement | null>(null)
   let animFrame = 0
 
+  // Cascading visibility: hiding an angle hides the points/lines that compose it,
+  // unless another visible angle (or no angle at all) keeps them on screen.
+  //
+  // A line is "claimed" by an angle when:
+  //   - the angle is a LineAngle that lists the line in lineAId/lineBId, OR
+  //   - the angle is a 3-point angle whose ray endpoints (A↔B or B↔C) match the
+  //     line's endpoints — so visually it composes the angle's rays.
+  // A line is visible iff: nothing claims it (standalone), or ≥1 visible angle claims it.
+  const visibleLineIds = $derived.by(() => {
+    const claimed = new Map<string, boolean>()
+    const claim = (lineId: string, isVisible: boolean) => {
+      claimed.set(lineId, (claimed.get(lineId) ?? false) || isVisible)
+    }
+
+    for (const a of linesVm.angles) {
+      const v = a.visible !== false
+      if (a.lineAId) claim(a.lineAId, v)
+      if (a.lineBId) claim(a.lineBId, v)
+    }
+
+    for (const m of anglesVm.measurements) {
+      if (!m.pointAId || !m.pointBId || !m.pointCId) continue
+      const v = m.visible !== false
+      for (const line of linesVm.measurements) {
+        const isRay1 =
+          (line.pointAId === m.pointAId && line.pointBId === m.pointBId) ||
+          (line.pointAId === m.pointBId && line.pointBId === m.pointAId)
+        const isRay2 =
+          (line.pointAId === m.pointBId && line.pointBId === m.pointCId) ||
+          (line.pointAId === m.pointCId && line.pointBId === m.pointBId)
+        if (isRay1 || isRay2) claim(line.id, v)
+      }
+    }
+
+    const ids = new Set<string>()
+    for (const m of linesVm.measurements) {
+      if (m.visible === false) continue // user explicitly hid this line
+      const hasVisibleClaim = claimed.get(m.id)
+      if (hasVisibleClaim === undefined || hasVisibleClaim === true) ids.add(m.id)
+    }
+    return ids
+  })
+
+  const visiblePointIds = $derived.by(() => {
+    const ids = new Set<string>()
+
+    // Points used by a visible 3-point angle
+    for (const m of anglesVm.measurements) {
+      if (m.visible === false) continue
+      if (m.pointAId) ids.add(m.pointAId)
+      if (m.pointBId) ids.add(m.pointBId)
+      if (m.pointCId) ids.add(m.pointCId)
+    }
+
+    // Points that are endpoints of a visible line
+    for (const line of linesVm.measurements) {
+      if (visibleLineIds.has(line.id)) {
+        ids.add(line.pointAId)
+        ids.add(line.pointBId)
+      }
+    }
+
+    // Orphan points (not referenced by any angle or line) — always visible
+    const referenced = new Set<string>()
+    for (const m of anglesVm.measurements) {
+      if (m.pointAId) referenced.add(m.pointAId)
+      if (m.pointBId) referenced.add(m.pointBId)
+      if (m.pointCId) referenced.add(m.pointCId)
+    }
+    for (const line of linesVm.measurements) {
+      referenced.add(line.pointAId)
+      referenced.add(line.pointBId)
+    }
+    for (const p of pointsVm.items) {
+      if (!referenced.has(p.id)) ids.add(p.id)
+    }
+
+    // Forced cascade: an explicitly-hidden line always hides its endpoint points,
+    // even if another visible angle/line still references them.
+    for (const line of linesVm.measurements) {
+      if (line.visible === false) {
+        ids.delete(line.pointAId)
+        ids.delete(line.pointBId)
+      }
+    }
+
+    return ids
+  })
+
+  const visiblePoints = $derived(pointsVm.items.filter((p) => visiblePointIds.has(p.id)))
+  const visibleLines = $derived(linesVm.measurements.filter((m) => visibleLineIds.has(m.id)))
+  const visibleAngles = $derived(anglesVm.measurements.filter((m) => m.visible !== false))
+  const visibleLineAngles = $derived(linesVm.angles.filter((a) => a.visible !== false))
+
+  const pointVisibilityFilter = (p: Point) => visiblePointIds.has(p.id)
+
   // Pointer tracking
   let isPanning = $state(false)
   let isDragging = $state(false)
@@ -108,19 +204,19 @@
       drawCalibrationPoints(ctx, calibrationVm.pending, canvasVm.zoom, dragCalibIndex)
     }
 
-    // Points
-    drawPoints(ctx, pointsVm.items, canvasVm.zoom)
+    // Points (only those used by a visible angle/line, or unreferenced orphans)
+    drawPoints(ctx, visiblePoints, canvasVm.zoom)
 
-    // Handle for selected point
-    if (pointsVm.selected) {
+    // Handle for selected point — only if the selected point is currently visible
+    if (pointsVm.selected && visiblePointIds.has(pointsVm.selected.id)) {
       drawHandle(ctx, pointsVm.selected, canvasVm.zoom)
     }
 
-    // Lines
-    drawLines(ctx, linesVm.measurements, pointsVm.items, canvasVm.zoom, calibrationVm.pxPerMm)
+    // Lines (full points list for endpoint coordinate lookup)
+    drawLines(ctx, visibleLines, pointsVm.items, canvasVm.zoom, calibrationVm.pxPerMm)
 
-    // Line angles at intersection
-    drawLineAngles(ctx, linesVm.angles, linesVm.measurements, pointsVm.items, canvasVm.zoom)
+    // Line-angle arcs (full lines/points for lookup)
+    drawLineAngles(ctx, visibleLineAngles, linesVm.measurements, pointsVm.items, canvasVm.zoom)
 
     // Pending line point highlight
     if (linesVm.pendingPointId) {
@@ -147,8 +243,8 @@
       if (pt) drawPendingLine(ctx, pt, canvasVm.zoom)
     }
 
-    // Angles
-    drawAngles(ctx, anglesVm.measurements, pointsVm.items, canvasVm.zoom)
+    // Angles (full points list for lookup)
+    drawAngles(ctx, visibleAngles, pointsVm.items, canvasVm.zoom)
 
     // Text annotations
     drawAnnotations(ctx, annotationsVm.items, annotationsVm.selectedId, canvasVm.zoom)
@@ -195,7 +291,7 @@
         return
       }
       // Also allow selecting/deselecting points by tapping on them
-      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
+      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom, pointVisibilityFilter)
       if (hit) {
         annotationsVm.select(null)
         pointsVm.select(hit.id === pointsVm.selectedId ? null : hit.id)
@@ -240,7 +336,7 @@
       }
 
       // Check if clicking on an existing point
-      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
+      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom, pointVisibilityFilter)
       if (hit) {
         pointsVm.select(hit.id)
         return
@@ -253,7 +349,7 @@
     }
 
     if (canvasVm.mode === 'point-angle') {
-      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
+      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom, pointVisibilityFilter)
       if (hit) {
         onBeforeAction()
         anglesVm.selectPointForAngle(hit.id)
@@ -263,7 +359,7 @@
     }
 
     if (canvasVm.mode === 'line' || canvasVm.mode === 'ray') {
-      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
+      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom, pointVisibilityFilter)
       if (hit) {
         onBeforeAction()
         linesVm.selectPoint(hit.id, canvasVm.mode === 'ray')
@@ -275,7 +371,7 @@
 
     if (canvasVm.mode === 'line-angle') {
       // First: if a point is selected, highlight it and find its line
-      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom)
+      const hit = pointsVm.hitTest(x, y, POINT_RADIUS * 3 / canvasVm.zoom, pointVisibilityFilter)
       if (hit) {
         pointsVm.select(hit.id)
         // Find lines through this point, prefer one different from pending

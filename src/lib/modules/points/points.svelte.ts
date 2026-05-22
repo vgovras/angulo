@@ -85,9 +85,10 @@ export class PointsViewModel {
     this.save()
   }
 
-  hitTest(x: number, y: number, radius: number): Point | null {
+  hitTest(x: number, y: number, radius: number, filter?: (p: Point) => boolean): Point | null {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const p = this.items[i]
+      if (filter && !filter(p)) continue
       const dx = p.x - x
       const dy = p.y - y
       if (dx * dx + dy * dy <= radius * radius) return p

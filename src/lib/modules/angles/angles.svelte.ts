@@ -13,6 +13,8 @@ export class AnglesViewModel {
   /** How many points selected so far (0-2) */
   pendingCount = $derived(this.pendingPoints.length)
 
+  visibleMeasurements = $derived(this.measurements.filter((m) => m.visible !== false))
+
   constructor(pointsVm: PointsViewModel) {
     this.pointsVm = pointsVm
     this.load()
@@ -37,6 +39,7 @@ export class AnglesViewModel {
         pointBId: bId,
         pointCId: cId,
         valueDeg: null,
+        visible: true,
       })
       const m = this.measurements[this.measurements.length - 1]
       this.recalc(m)
@@ -57,7 +60,21 @@ export class AnglesViewModel {
       pointBId: '',
       pointCId: '',
       valueDeg: null,
+      visible: true,
     })
+    this.save()
+  }
+
+  setVisible(id: string, visible: boolean) {
+    const m = this.measurements.find((m) => m.id === id)
+    if (m) {
+      m.visible = visible
+      this.save()
+    }
+  }
+
+  setAllVisible(visible: boolean) {
+    for (const m of this.measurements) m.visible = visible
     this.save()
   }
 

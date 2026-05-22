@@ -11,6 +11,8 @@
   import Minus from '@lucide/svelte/icons/minus'
   import ArrowRight from '@lucide/svelte/icons/arrow-right'
   import Plus from '@lucide/svelte/icons/plus'
+  import Eye from '@lucide/svelte/icons/eye'
+  import EyeOff from '@lucide/svelte/icons/eye-off'
 
   let {
     linesVm,
@@ -45,10 +47,20 @@
 
 <div class="space-y-2">
   <Separator />
-  <div class="flex items-center justify-between">
+  <div class="flex items-center justify-between gap-2">
     <h3 class="text-sm font-semibold">
       Лінії ({linesVm.measurements.length})
     </h3>
+    {#if linesVm.measurements.length > 0}
+      <div class="flex gap-1">
+        <Button variant="ghost" size="xs" onclick={() => linesVm.setAllVisible(false)}>
+          <EyeOff class="size-3" />
+        </Button>
+        <Button variant="ghost" size="xs" onclick={() => linesVm.setAllVisible(true)}>
+          <Eye class="size-3" />
+        </Button>
+      </div>
+    {/if}
   </div>
 
   {#if linesVm.measurements.length === 0}
@@ -58,7 +70,10 @@
   {:else}
     <div class="space-y-1">
       {#each linesVm.measurements as m (m.id)}
-        <div class="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-muted">
+        <div
+          class="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-muted"
+          class:opacity-50={m.visible === false}
+        >
           <div class="flex items-center gap-2">
             {#if m.isRay}
               <ArrowRight class="size-3 text-muted-foreground" />
@@ -70,13 +85,26 @@
               {formatLength(m.lengthPx)}
             </Badge>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onclick={() => { onBeforeAction(); linesVm.remove(m.id) }}
-          >
-            <X class="size-3" />
-          </Button>
+          <div class="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onclick={() => linesVm.setVisible(m.id, m.visible === false)}
+            >
+              {#if m.visible === false}
+                <EyeOff class="size-3" />
+              {:else}
+                <Eye class="size-3" />
+              {/if}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onclick={() => { onBeforeAction(); linesVm.remove(m.id) }}
+            >
+              <X class="size-3" />
+            </Button>
+          </div>
         </div>
       {/each}
     </div>
@@ -84,28 +112,51 @@
     <!-- Line angles -->
     {#if linesVm.measurements.length >= 2}
       <div class="space-y-2 pt-2">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-2">
           <span class="text-xs font-medium text-muted-foreground">Кути між лініями</span>
-          <Button variant="outline" size="xs" onclick={() => { onBeforeAction(); linesVm.addAngle() }}>
-            <Plus class="size-3" /> Кут
-          </Button>
+          <div class="flex items-center gap-1">
+            {#if linesVm.angles.length > 0}
+              <Button variant="ghost" size="xs" onclick={() => linesVm.setAllAnglesVisible(false)}>
+                <EyeOff class="size-3" />
+              </Button>
+              <Button variant="ghost" size="xs" onclick={() => linesVm.setAllAnglesVisible(true)}>
+                <Eye class="size-3" />
+              </Button>
+            {/if}
+            <Button variant="outline" size="xs" onclick={() => { onBeforeAction(); linesVm.addAngle() }}>
+              <Plus class="size-3" /> Кут
+            </Button>
+          </div>
         </div>
 
         {#each linesVm.angles as a (a.id)}
-          <div class="space-y-1 rounded-md border p-2">
+          <div class="space-y-1 rounded-md border p-2" class:opacity-50={a.visible === false}>
             <div class="flex items-center justify-between">
               {#if a.valueDeg !== null}
                 <Badge>&#x2220; {a.valueDeg}&deg;</Badge>
               {:else}
                 <Badge variant="outline">Оберіть 2 лінії</Badge>
               {/if}
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onclick={() => { onBeforeAction(); linesVm.removeAngle(a.id) }}
-              >
-                <X class="size-3" />
-              </Button>
+              <div class="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onclick={() => linesVm.setAngleVisible(a.id, a.visible === false)}
+                >
+                  {#if a.visible === false}
+                    <EyeOff class="size-3" />
+                  {:else}
+                    <Eye class="size-3" />
+                  {/if}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onclick={() => { onBeforeAction(); linesVm.removeAngle(a.id) }}
+                >
+                  <X class="size-3" />
+                </Button>
+              </div>
             </div>
             <div class="grid grid-cols-2 gap-1">
               <Select.Root
